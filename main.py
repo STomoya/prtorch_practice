@@ -8,16 +8,22 @@ import matplotlib.pyplot as plt
 from source.dataset import cifar_dataloader
 from source.model import SimpleModel
 
+# initual variables
 epochs = 100
+batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-train, val, test = cifar_dataloader(batch_size=50)
+# loading data and model
+train, val, test = cifar_dataloader(batch_size=32)
 model = SimpleModel()
+# for gpu usage
 model = model.to(device)
 
-optimizer = optim.Adam(model.parameters())
+# optimizer and loss function
+optimizer = optim.SGD(model.parameters(), lr=0.01)
 criterion = nn.CrossEntropyLoss()
 
+# for plotting history of training
 epoch_loss = {
     'train' : [],
     'val'   : []
@@ -27,7 +33,7 @@ epoch_acc  = {
     'val'   : []
 }
 
-model.train()
+# training phase
 for epoch in range(1, epochs+1):
     print('EPOCH {} / {}'.format(epoch, epochs))
     for phase in ['train', 'val']:
@@ -37,31 +43,42 @@ for epoch in range(1, epochs+1):
         else:
             model.train(False)
             dataset = val
-        loss     = 0
+        loss    = 0
         correct = 0
+        batch_count = 0
         for index, (data, target) in enumerate(dataset, 1):
+            # data to gpu
             data = data.to(device)
             target = target.to(device)
 
+            # forward
             output = model(data)
+            # loss calculation
             batch_loss = criterion(output, target)
 
             if phase == 'train':
+                # optimization
+                # only on training data
                 optimizer.zero_grad()
                 batch_loss.backward()
                 optimizer.step()
 
+            # for calculating epoch accuracy and loss
             loss += batch_loss.item()
             _, predicted = torch.max(output.data, 1)
             correct += (predicted == target).sum().item()
-        epoch_loss[phase].append(loss/(len(dataset.dataset)/dataset.batch_size))
-        epoch_acc[phase].append(100*correct/len(dataset.dataset))
+            batch_count += 1
+        # epoch accuracy and loss calculation
+        epoch_loss[phase].append(loss / batch_count)
+        epoch_acc[phase].append(100 * correct / len(dataset.dataset))
 
+    # verbose
     print('Train loss : {:.5f}'.format(epoch_loss['train'][-1]), end='\t')
     print( 'Train Acc : {:.5f}'.format(epoch_acc['train'][-1]),  end='\t')
     print(  'Val loss : {:.5f}'.format(epoch_loss['val'][-1]),   end='\t')
     print(   'Val Acc : {:.5f}'.format(epoch_acc['val'][-1]))
 
+# evaluate
 correct = 0
 total = 0
 model.eval()
@@ -73,6 +90,7 @@ with torch.no_grad():
         correct += (predicted == target).sum().item()
 print('test accuracy : {:.5f}'.format(100*correct/len(test.dataset)))
 
+# plotting
 plt.figure(figsize=(12, 5))
 plt.subplot(1, 2, 1)
 plt.plot(epoch_loss['train'])
