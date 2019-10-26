@@ -1,4 +1,6 @@
 
+import time
+
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -7,20 +9,23 @@ import matplotlib.pyplot as plt
 
 from source.dataset import cifar_dataloader
 from source.model import SimpleModel
+from source.model import ConvModel
+from source.model import VGGLikeModel
+from source.model import WideModel
 
 # initual variables
-epochs = 100
+epochs = 50
 batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # loading data and model
 train, val, test = cifar_dataloader(batch_size=32)
-model = SimpleModel()
+model = WideModel()
 # for gpu usage
 model = model.to(device)
 
 # optimizer and loss function
-optimizer = optim.SGD(model.parameters(), lr=0.01)
+optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, nesterov=True)
 criterion = nn.CrossEntropyLoss()
 
 # for plotting history of training
@@ -36,6 +41,7 @@ epoch_acc  = {
 # training phase
 for epoch in range(1, epochs+1):
     print('EPOCH {} / {}'.format(epoch, epochs))
+    epoch_start = time.time()
     for phase in ['train', 'val']:
         if phase == 'train':
             model.train(True)
@@ -72,7 +78,9 @@ for epoch in range(1, epochs+1):
         epoch_loss[phase].append(loss / batch_count)
         epoch_acc[phase].append(100 * correct / len(dataset.dataset))
 
+    epoch_time = time.time() - epoch_start
     # verbose
+    print('sec {:.2f}[s]'.format(epoch_time),                    end='\t')
     print('Train loss : {:.5f}'.format(epoch_loss['train'][-1]), end='\t')
     print( 'Train Acc : {:.5f}'.format(epoch_acc['train'][-1]),  end='\t')
     print(  'Val loss : {:.5f}'.format(epoch_loss['val'][-1]),   end='\t')

@@ -83,7 +83,10 @@ class CIFAR100(Dataset):
         if not transform == None:
             self.transform = transform
         else:
-            self.transform = transforms.ToTensor()
+            self.transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                ])
 
         self.data = None
         self.targets = None
@@ -141,7 +144,7 @@ class CIFAR100(Dataset):
             with open(str(dataset_file), 'rb') as fin:
                 dataset = pickle.load(fin, encoding='bytes')
             self.targets = dataset[b'fine_labels']
-            self.data = dataset[b'data'].reshape(-1, 3, 32, 32)
+            self.data = dataset[b'data'].reshape(-1, 32, 32, 3)
         except Exception as e:
             print(e)
             raise
