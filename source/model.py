@@ -127,6 +127,79 @@ class WideModel(nn.Module):
         x = self.fc2(x)
         return x
 
+class PyramidModel(nn.Module):
+    def __init__(self):
+        super(PyramidModel, self).__init__()
+        
+        self.fx_conv = nn.Conv2d(3, 64, 1)
+
+        # top block
+        self.top_conv0 = nn.Conv2d(64, 64, 3, padding=1, padding_mode='same')
+        self.top_conv1 = nn.Conv2d(64, 64, 5, padding=2, padding_mode='same')
+        self.top_conv2 = nn.Conv2d(64, 64, 7, padding=3, padding_mode='same')
+        self.max_pool1 = nn.MaxPool2d((2, 2))
+
+        # top to bottom connection
+        self.top2bottom0 = nn.Conv2d(64, 128, 1)
+        self.top2bottom1 = nn.Conv2d(64, 128, 1)
+        self.top2bottom2 = nn.Conv2d(64, 128, 1)
+
+        # bottom blocks
+        self.bottom_conv00 = nn.Conv2d(128, 128, 3, padding=1, padding_mode='same')
+        self.bottom_conv01 = nn.Conv2d(128, 128, 5, padding=2, padding_mode='same')
+        self.bottom_conv02 = nn.Conv2d(128, 128, 7, padding=3, padding_mode='same')
+
+        self.bottom_conv10 = nn.Conv2d(128, 128, 3, padding=1, padding_mode='same')
+        self.bottom_conv11 = nn.Conv2d(128, 128, 5, padding=2, padding_mode='same')
+        self.bottom_conv12 = nn.Conv2d(128, 128, 7, padding=3, padding_mode='same')
+
+        self.bottom_conv20 = nn.Conv2d(128, 128, 3, padding=1, padding_mode='same')
+        self.bottom_conv21 = nn.Conv2d(128, 128, 5, padding=2, padding_mode='same')
+        self.bottom_conv22 = nn.Conv2d(128, 128, 7, padding=3, padding_mode='same')
+        self.max_pool2 = nn.MaxPool2d((2, 2))
+
+        # combine layer
+        self.comb_conv = nn.Conv2d(128*9, 1024, 1)
+
+        # prediction block
+        self.ave_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc1 = nn.Linear(1024, 1024)
+        self.fc2 = nn.Linear(1024, 100)
+        
+        self.drop1 = nn.Dropout2d(0.25)
+        self.drop2 = nn.Dropout(0.5)
+
+    def forward(self, x):
+        x = F.relu(self.fx_conv(x))
+
+        pyramid0 = self.drop1(self.max_pool1(F.relu(self.top_conv0(x))))
+        pyramid1 = self.drop1(self.max_pool1(F.relu(self.top_conv1(x))))
+        pyramid2 = self.drop1(self.max_pool1(F.relu(self.top_conv2(x))))
+
+        pyramid0 = F.relu(self.top2bottom0(pyramid0))
+        pyramid1 = F.relu(self.top2bottom1(pyramid1))
+        pyramid2 = F.relu(self.top2bottom2(pyramid2))
+
+        pyramid00 = self.drop1(self.max_pool2(F.relu(self.bottom_conv00(pyramid0))))
+        pyramid01 = self.drop1(self.max_pool2(F.relu(self.bottom_conv01(pyramid0))))
+        pyramid02 = self.drop1(self.max_pool2(F.relu(self.bottom_conv02(pyramid0))))
+
+        pyramid10 = self.drop1(self.max_pool2(F.relu(self.bottom_conv10(pyramid1))))
+        pyramid11 = self.drop1(self.max_pool2(F.relu(self.bottom_conv11(pyramid1))))
+        pyramid12 = self.drop1(self.max_pool2(F.relu(self.bottom_conv12(pyramid1))))
+
+        pyramid20 = self.drop1(self.max_pool2(F.relu(self.bottom_conv20(pyramid2))))
+        pyramid21 = self.drop1(self.max_pool2(F.relu(self.bottom_conv21(pyramid2))))
+        pyramid22 = self.drop1(self.max_pool2(F.relu(self.bottom_conv22(pyramid2))))
+
+        x = torch.cat([pyramid00, pyramid01, pyramid02, pyramid10, pyramid11, pyramid12, pyramid20, pyramid21, pyramid22], dim=1)
+        x = F.relu(self.comb_conv(x))
+        x = self.ave_pool(x)
+        x = x.view(-1, 1024)
+        x = self.drop2(F.relu(self.fc1(x)))
+        x = self.fc2(x)
+        return x
+
 if __name__=='__main__':
     model = WideModel()
     print(model)

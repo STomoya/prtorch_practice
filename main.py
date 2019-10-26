@@ -12,6 +12,7 @@ from source.model import SimpleModel
 from source.model import ConvModel
 from source.model import VGGLikeModel
 from source.model import WideModel
+from source.model import PyramidModel
 
 # initual variables
 epochs = 50
@@ -19,8 +20,8 @@ batch_size = 32
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # loading data and model
-train, val, test = cifar_dataloader(batch_size=32)
-model = WideModel()
+train, val, test = cifar_dataloader(batch_size=batch_size)
+model = PyramidModel()
 # for gpu usage
 model = model.to(device)
 
